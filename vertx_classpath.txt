@@ -1,0 +1,5 @@
+src/main/resources
+bin
+out/production/spike-vertx
+out/test/spike-vertx
+build/deps

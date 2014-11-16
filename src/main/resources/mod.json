@@ -1,0 +1,17 @@
+{
+
+  "main":"avatar.voting.StarterVerticle",
+
+  "description":"Avatar voting vertx module",
+  "licenses": ["The Apache Software License Version 2.0"],
+  "author": "Dan-Dongcheol-Lee",
+
+  // Optional fields
+  "developers": ["Dan-Dongcheol-Lee"],
+  "keywords": ["avatar", "voting"],
+  "homepage": "https://github.com/10QueensRoad/avatar-voting-vertx",
+
+  "auto-redeploy": true,
+
+  "includes":"com.bloidonia~mod-jdbc-persistor~2.1.3"
+}
