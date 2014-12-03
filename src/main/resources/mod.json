@@ -11,7 +11,5 @@
   "keywords": ["avatar", "voting"],
   "homepage": "https://github.com/10QueensRoad/avatar-voting-vertx",
 
-  "auto-redeploy": true,
-
-  "includes":"com.bloidonia~mod-jdbc-persistor~2.1.3"
+  "auto-redeploy": true
 }

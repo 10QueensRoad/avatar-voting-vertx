@@ -43,13 +43,9 @@ install - install any jars produced to the local Maven repository (.m2)
  */
 
 dependencies {
-  /*
-  Add your module jar dependencies here
-  E.g.
-  compile "com.foo:foo-lib:1.0.1" - for compile time deps - this will end up in your module too!
-  testCompile "com.foo:foo-lib:1.0.1" - for test time deps
-  provided "com.foo:foo-lib:1.0.1" - if you DON'T want it to be packaged in the module zip
-  */
+    compile "org.hibernate:hibernate-entitymanager:4.3.7.Final"
+    compile "org.springframework.data:spring-data-jpa:1.7.1.RELEASE"
+    compile "org.hsqldb:hsqldb:2.3.2"
 }
 
 test {
