@@ -11,6 +11,7 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.data.domain.Sort;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.vertx.java.core.Handler;
+import org.vertx.java.core.MultiMap;
 import org.vertx.java.core.eventbus.EventBus;
 import org.vertx.java.core.http.HttpServer;
 import org.vertx.java.core.http.HttpServerRequest;
@@ -38,14 +39,6 @@ public class AvatarVotingVerticle extends Verticle {
         EventBus eventBus = vertx.eventBus();
         RouteMatcher routeMatcher = new RouteMatcher()
 
-        .post("/login", acceptJson((req, reqJson) -> {
-            Avatar avatar = avatarRepository.findOne(reqJson.getLong("avatarId"));
-            Voter voter = new Voter(reqJson.getString("email"));
-            avatar.addVoter(voter);
-            avatarRepository.saveAndFlush(avatar);
-            req.response().end(jsonString(voter));
-        }))
-
         .post("/avatar", acceptJson((req, reqJson) -> {
             Avatar avatar = avatarRepository.findByCandidateEmail(reqJson.getString("candidateEmail"));
             if (avatar != null) {
@@ -65,16 +58,17 @@ public class AvatarVotingVerticle extends Verticle {
         .post("/avatar-suggestion-control", acceptJson((req, reqJson) -> {
             Avatar avatar = avatarRepository.findOne(reqJson.getLong("avatarId"));
             avatar.setSuggestionOpen(reqJson.getBoolean("suggestionOpen"));
-            avatarRepository.saveAndFlush(avatar);
+            avatarRepository.save(avatar);
             req.response().end(new JsonObject()
-                    .putBoolean("suggestionOpen", avatar.getSuggestionOpen()).toString());
+                    .putString("suggestionOpen", avatar.getSuggestionOpenString()).toString());
         }))
 
         .post("/avatar-vote-control", acceptJson((req, reqJson) -> {
             Avatar avatar = avatarRepository.findOne(reqJson.getLong("avatarId"));
             avatar.setVoteOpen(reqJson.getBoolean("voteOpen"));
+            avatarRepository.save(avatar);
             req.response().end(new JsonObject()
-                    .putBoolean("voteOpen", avatar.getVoteOpen()).toString());
+                    .putString("voteOpen", avatar.getVoteOpenString()).toString());
         }))
 
         .post("/avatar-vote-control", acceptJson((req, reqJson) -> {
@@ -104,6 +98,15 @@ public class AvatarVotingVerticle extends Verticle {
             req.response().end(new JsonArray(listMap).toString());
         }))
 
+        .post("/login", acceptJson((req, reqJson) -> {
+            Avatar avatar = avatarRepository.findOne(reqJson.getLong("avatarId"));
+            Voter voter = new Voter(reqJson.getString("email"));
+            avatar.addVoter(voter);
+            avatarRepository.save(avatar);
+            voterRepository.save(voter);
+            req.response().end(jsonString(voter));
+        }))
+
         .get("/voter", acceptJson((req, reqJson) -> {
             Voter voter = voterRepository.findOne(reqJson.getLong("id"));
             if (voter == null) {
@@ -113,8 +116,10 @@ public class AvatarVotingVerticle extends Verticle {
             req.response().end(jsonString(voter));
         }))
 
-        .get("/suggestions", acceptJson((req, reqJson) -> {
-            Avatar avatar = avatarRepository.findOne(reqJson.getLong("avatarId"));
+        .get("/suggestions", cors(req -> {
+            System.out.println("req params: " + req.params());
+            Long avatarId = Long.parseLong(req.params().get("avatarId"));
+            Avatar avatar = avatarRepository.findOne(avatarId);
             if (avatar == null) {
                 badRequest(req, "Avatar does not exist.");
                 return;
@@ -183,6 +188,8 @@ public class AvatarVotingVerticle extends Verticle {
                 .putString("candidateEmail", avatar.getCandidateEmail())
                 .putBoolean("suggestionOpen", avatar.getSuggestionOpen())
                 .putBoolean("voteOpen", avatar.getVoteOpen())
+                .putString("suggestionOpenString", avatar.getSuggestionOpenString())
+                .putString("voteOpenString", avatar.getVoteOpenString())
                 .toString();
     }
 
@@ -232,7 +239,7 @@ public class AvatarVotingVerticle extends Verticle {
 
     private Handler<HttpServerRequest> acceptJson(BiConsumer<HttpServerRequest, JsonObject> handler) {
         return cors(req -> req.bodyHandler(body -> {
-            System.out.println(body.toString());
+            System.out.println("req uri: " + req.uri() + ", json: " + body.toString());
             handler.accept(req, new JsonObject(body.toString()));
         }));
     }

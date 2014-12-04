@@ -102,4 +102,12 @@ public class Avatar {
     public void setVoteOpen(Boolean voteOpen) {
         this.voteOpen = voteOpen;
     }
+
+    public String getSuggestionOpenString() {
+        return suggestionOpen ? "open" : "close";
+    }
+
+    public String getVoteOpenString() {
+        return voteOpen ? "open" : "close";
+    }
 }

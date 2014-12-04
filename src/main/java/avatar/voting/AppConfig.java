@@ -39,7 +39,7 @@ public class AppConfig {
         factory.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
         Map<String, Object> jpaPropertyMap = new HashMap<>();
         jpaPropertyMap.put("hibernate.dialect", "org.hibernate.dialect.HSQLDialect");
-        jpaPropertyMap.put("hibernate.show_sql", Boolean.TRUE);
+        jpaPropertyMap.put("hibernate.show_sql", Boolean.FALSE);
         jpaPropertyMap.put("hibernate.format_sql", Boolean.FALSE);
         jpaPropertyMap.put("hibernate.hbm2ddl.auto", "update");
         factory.setJpaPropertyMap(jpaPropertyMap);
