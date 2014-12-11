@@ -27,10 +27,11 @@ public class Avatar {
     @Column(name = "vote_open")
     private Boolean voteOpen;
 
-    @OneToMany(mappedBy = "avatar", orphanRemoval = true, cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "avatar", orphanRemoval = true, cascade = CascadeType.ALL)
     private Set<Voter> voters = new LinkedHashSet<>();
 
-    @OneToMany(mappedBy = "avatar", orphanRemoval = true, cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "avatar", orphanRemoval = true, cascade = CascadeType.ALL)
+    @OrderBy("id desc")
     private Set<Suggestion> suggestions = new LinkedHashSet<>();
 
     private Avatar() {
@@ -79,20 +80,22 @@ public class Avatar {
         this.voters.add(voter);
     }
 
-    public Suggestion addSuggestion(Voter suggester, String suggestionName) {
+    public Suggestion addSuggestion(Long suggesterId, String suggestionName) {
         if (suggestions.stream().anyMatch(suggestion -> suggestion.getName().equals(suggestionName))) {
             throw new RuntimeException("Suggested name exists!");
         }
-        Suggestion suggestion = new Suggestion(suggestionName, suggester, this);
+        Optional<Voter> suggester = findVoter(suggesterId);
+        Suggestion suggestion = new Suggestion(suggestionName, suggester.get(), this);
         suggestions.add(suggestion);
         return suggestion;
     }
 
-    public Suggestion vote(Suggestion suggestion, Voter voter) {
-        Optional<Suggestion> nullableSuggestion = suggestions.stream().filter(suggest -> suggest.equals(suggestion))
-                .findFirst();
-        nullableSuggestion.ifPresent(suggest -> suggest.voted(voter));
-        return nullableSuggestion.orElseThrow(() -> new RuntimeException("Suggestion does not exist"));
+    public Suggestion vote(Long voterId, Long suggestionId) {
+        Optional<Voter> voter = findVoter(voterId);
+        Optional<Suggestion> suggestion = findSuggestion(suggestionId);
+        Suggestion suggested = suggestion.get();
+        suggested.voted(voter.get());
+        return suggested;
     }
 
     public void setSuggestionOpen(Boolean suggestionOpen) {
@@ -103,11 +106,25 @@ public class Avatar {
         this.voteOpen = voteOpen;
     }
 
-    public String getSuggestionOpenString() {
-        return suggestionOpen ? "open" : "close";
+    private Optional<Voter> findVoter(Long voterId) {
+        System.out.println("voters:" + getVoters());
+        System.out.println("voter size:" + getVoters().size());
+
+        Optional<Voter> suggester = getVoters().stream().filter(
+                voter -> voter.getId().equals(voterId)).findFirst();
+        if (!suggester.isPresent()) {
+            throw new RuntimeException("Voter doest not exist!");
+        }
+        return suggester;
     }
 
-    public String getVoteOpenString() {
-        return voteOpen ? "open" : "close";
+    private Optional<Suggestion> findSuggestion(Long suggestionId) {
+        Optional<Suggestion> suggestion = suggestions.stream().filter(
+                suggest -> suggest.getId().equals(suggestionId)).findFirst();
+        if (!suggestion.isPresent()) {
+            throw new RuntimeException("Suggestion does not exist");
+        }
+        return suggestion;
     }
+
 }

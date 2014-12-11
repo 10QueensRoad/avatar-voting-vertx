@@ -1,17 +1,12 @@
 package avatar.voting;
 
-import avatar.voting.domain.Avatar;
-import avatar.voting.domain.Suggestion;
-import avatar.voting.domain.Voter;
-import avatar.voting.repository.AvatarRepository;
-import avatar.voting.repository.SuggestionRepository;
-import avatar.voting.repository.VoterRepository;
+import avatar.voting.domain.AvatarDetails;
+import avatar.voting.domain.SuggestionDetails;
+import avatar.voting.domain.VoterDetails;
+import avatar.voting.service.AvatarVotingService;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.data.domain.Sort;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.vertx.java.core.Handler;
-import org.vertx.java.core.MultiMap;
 import org.vertx.java.core.eventbus.EventBus;
 import org.vertx.java.core.http.HttpServer;
 import org.vertx.java.core.http.HttpServerRequest;
@@ -32,126 +27,78 @@ public class AvatarVotingVerticle extends Verticle {
     public void start() {
 
         ApplicationContext context = new AnnotationConfigApplicationContext(AppConfig.class);
-        AvatarRepository avatarRepository = context.getBean(AvatarRepository.class);
-        VoterRepository voterRepository = context.getBean(VoterRepository.class);
-        SuggestionRepository suggestionRepository = context.getBean(SuggestionRepository.class);
+        AvatarVotingService service = context.getBean(AvatarVotingService.class);
 
         EventBus eventBus = vertx.eventBus();
         RouteMatcher routeMatcher = new RouteMatcher()
 
         .post("/avatar", acceptJson((req, reqJson) -> {
-            Avatar avatar = avatarRepository.findByCandidateEmail(reqJson.getString("candidateEmail"));
-            if (avatar != null) {
-                badRequest(req, "Avatar for the candidate exists!");
-                return;
-            }
-            Avatar newAvatar = new Avatar(reqJson.getString("candidate"), reqJson.getString("candidateEmail"));
-            avatarRepository.save(newAvatar);
+            AvatarDetails newAvatar = service.saveAvatar(
+                    reqJson.getString("candidate"), reqJson.getString("candidateEmail"));
             req.response().end(jsonString(newAvatar));
         }))
 
         .post("/avatar-delete", acceptJson((req, reqJson) -> {
-            avatarRepository.delete(reqJson.getLong("avatarId"));
+            service.deleteAvatar(reqJson.getLong("avatarId"));
             req.response().end("{}");
         }))
 
         .post("/avatar-suggestion-control", acceptJson((req, reqJson) -> {
-            Avatar avatar = avatarRepository.findOne(reqJson.getLong("avatarId"));
-            avatar.setSuggestionOpen(reqJson.getBoolean("suggestionOpen"));
-            avatarRepository.save(avatar);
+            AvatarDetails avatar = service.controlSuggestionOpen(
+                    reqJson.getLong("avatarId"), reqJson.getBoolean("suggestionOpen"));
             req.response().end(new JsonObject()
                     .putString("suggestionOpen", avatar.getSuggestionOpenString()).toString());
         }))
 
         .post("/avatar-vote-control", acceptJson((req, reqJson) -> {
-            Avatar avatar = avatarRepository.findOne(reqJson.getLong("avatarId"));
-            avatar.setVoteOpen(reqJson.getBoolean("voteOpen"));
-            avatarRepository.save(avatar);
+            AvatarDetails avatar = service.controlVoteOpen(
+                    reqJson.getLong("avatarId"), reqJson.getBoolean("voteOpen"));
             req.response().end(new JsonObject()
                     .putString("voteOpen", avatar.getVoteOpenString()).toString());
         }))
 
-        .post("/avatar-vote-control", acceptJson((req, reqJson) -> {
-            avatarRepository.delete(reqJson.getLong("avatarId"));
-            req.response().end("{}");
-        }))
-
         .get("/avatar", acceptJson((req, reqJson) -> {
-            Avatar avatar = avatarRepository.findOne(reqJson.getLong("id"));
-            if (avatar == null) {
-                badRequest(req, "Avatar does not exist.");
-                return;
-            }
+            AvatarDetails avatar = service.findOne(reqJson.getLong("id"));
             req.response().end(jsonString(avatar));
         }))
 
         .get("/avatar-last", cors(req -> {
-            Avatar avatar = avatarRepository.findLast();
+            AvatarDetails avatar = service.findLast();
             req.response().end(jsonString(avatar));
         }))
 
         .get("/avatars", cors(req -> {
-            List<Map<String, Object>> listMap = avatarRepository.findAll(
-                    new Sort(new Sort.Order(Sort.Direction.DESC, "id")))
+            List<Map<String, Object>> listMap = service.findAll()
                     .stream().map(this::toMap)
                     .collect(Collectors.toList());
             req.response().end(new JsonArray(listMap).toString());
         }))
 
         .post("/login", acceptJson((req, reqJson) -> {
-            Avatar avatar = avatarRepository.findOne(reqJson.getLong("avatarId"));
-            Voter voter = new Voter(reqJson.getString("email"));
-            avatar.addVoter(voter);
-            avatarRepository.save(avatar);
-            voterRepository.save(voter);
-            req.response().end(jsonString(voter));
-        }))
-
-        .get("/voter", acceptJson((req, reqJson) -> {
-            Voter voter = voterRepository.findOne(reqJson.getLong("id"));
-            if (voter == null) {
-                badRequest(req, "Voter does not exist. Please do login again!");
-                return;
-            }
+            VoterDetails voter = service.addVoter(
+                    reqJson.getLong("avatarId"), reqJson.getString("email"));
             req.response().end(jsonString(voter));
         }))
 
         .get("/suggestions", cors(req -> {
-            System.out.println("req params: " + req.params());
-            Long avatarId = Long.parseLong(req.params().get("avatarId"));
-            Avatar avatar = avatarRepository.findOne(avatarId);
-            if (avatar == null) {
-                badRequest(req, "Avatar does not exist.");
-                return;
-            }
-            List<Map<String, Object>> listMap = avatar.getSuggestions()
+            List<Map<String, Object>> listMap = service.findSuggestions(
+                    Long.parseLong(req.params().get("avatarId")))
                     .stream().map(this::toMap)
                     .collect(Collectors.toList());
             req.response().end(new JsonArray(listMap).toString());
         }))
 
         .post("/suggestions", acceptJson((req, reqJson) -> {
-            Avatar avatar = avatarRepository.findOne(reqJson.getLong("avatarId"));
-            if (avatar == null) {
-                badRequest(req, "Avatar does not exist.");
-                return;
-            }
-            Voter voter = voterRepository.findOne(reqJson.getLong("voterId"));
-            Suggestion suggestion = avatar.addSuggestion(voter, reqJson.getString("suggestion"));
+            SuggestionDetails suggestion = service.addSuggestion(
+                    reqJson.getLong("avatarId"), reqJson.getLong("voterId"), reqJson.getString("suggestion"));
             eventBus.publish("suggestion", jsonString(suggestion));
             req.response().end("{}");
         }))
 
         .post("/vote", acceptJson((req, reqJson) -> {
-            Avatar avatar = avatarRepository.findOne(reqJson.getLong("avatarId"));
-            if (avatar == null) {
-                badRequest(req, "Avatar does not exist.");
-                return;
-            }
-            Voter voter = voterRepository.findOne(reqJson.getLong("voterId"));
-            Suggestion suggestion = suggestionRepository.findOne(reqJson.getLong("suggestionId"));
-            Suggestion votedSuggestion = avatar.vote(suggestion, voter);
-            eventBus.publish("suggestion", jsonString(votedSuggestion));
+            SuggestionDetails suggestion = service.voteSuggestion(
+                    reqJson.getLong("avatarId"), reqJson.getLong("voterId"), reqJson.getLong("suggestionId"));
+            eventBus.publish("suggestion", jsonString(suggestion));
             req.response().end("{}");
         }))
 
@@ -176,7 +123,7 @@ public class AvatarVotingVerticle extends Verticle {
         });
     }
 
-    private String jsonString(Avatar avatar) {
+    private String jsonString(AvatarDetails avatar) {
         JsonObject json = new JsonObject();
         if (avatar == null) {
             return json.toString();
@@ -193,23 +140,24 @@ public class AvatarVotingVerticle extends Verticle {
                 .toString();
     }
 
-    private String jsonString(Voter voter) {
+    private String jsonString(VoterDetails voter) {
         return new JsonObject()
                 .putNumber("id", voter.getId())
                 .putString("email", voter.getEmail())
                 .toString();
     }
 
-    private String jsonString(Suggestion suggestion) {
+    private String jsonString(SuggestionDetails suggestion) {
         return new JsonObject()
                 .putNumber("id", suggestion.getId())
                 .putString("name", suggestion.getName())
-                .putNumber("votes", suggestion.getVotes())
-                .putString("suggester", suggestion.getSuggesterEmail())
+                .putArray("voters", new JsonArray(suggestion.getVoters()))
+                .putString("suggesterEmail", suggestion.getSuggesterEmail())
+                .putNumber("suggesterId", suggestion.getSuggesterId())
                 .toString();
     }
 
-    private Map<String, Object> toMap(Avatar avatar) {
+    private Map<String, Object> toMap(AvatarDetails avatar) {
         Map<String, Object> ret = new HashMap<>();
         ret.put("id", avatar.getId());
         ret.put("name", avatar.getName());
@@ -217,16 +165,16 @@ public class AvatarVotingVerticle extends Verticle {
         ret.put("candidateEmail", avatar.getCandidateEmail());
         ret.put("suggestionOpen", avatar.getSuggestionOpen());
         ret.put("voteOpen", avatar.getVoteOpen());
-        ret.put("voters", avatar.getVoters().size());
-        ret.put("suggestions", avatar.getSuggestions().size());
+        ret.put("voters", avatar.getNumberOfVoters());
+        ret.put("suggestions", avatar.getNumberOfSuggestions());
         return ret;
     }
 
-    private Map<String, Object> toMap(Suggestion suggest) {
+    private Map<String, Object> toMap(SuggestionDetails suggest) {
         Map<String, Object> ret = new HashMap<>();
         ret.put("id", suggest.getId());
         ret.put("name", suggest.getName());
-        ret.put("votes", suggest.getVotes());
+        ret.put("voters", suggest.getVoters());
         return ret;
     }
 
@@ -240,14 +188,24 @@ public class AvatarVotingVerticle extends Verticle {
     private Handler<HttpServerRequest> acceptJson(BiConsumer<HttpServerRequest, JsonObject> handler) {
         return cors(req -> req.bodyHandler(body -> {
             System.out.println("req uri: " + req.uri() + ", json: " + body.toString());
-            handler.accept(req, new JsonObject(body.toString()));
+            try {
+                handler.accept(req, new JsonObject(body.toString()));
+            } catch (Exception e) {
+                System.out.println("Got an error: " + e.getMessage());
+                badRequest(req, e.getMessage());
+            }
         }));
     }
 
     private Handler<HttpServerRequest> cors(Handler<HttpServerRequest> handler) {
         return req -> {
             req.response().putHeader("Access-Control-Allow-Origin", "*");
-            handler.handle(req);
+            try {
+                handler.handle(req);
+            } catch (Exception e) {
+                System.out.println("Got an error: " + e.getMessage());
+                badRequest(req, e.getMessage());
+            }
         };
     }
 }

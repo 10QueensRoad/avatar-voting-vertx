@@ -21,7 +21,8 @@ public class Voter {
     private Voter() {
     }
 
-    public Voter(String email) {
+    public Voter(Avatar avatar, String email) {
+        this.avatar = avatar;
         this.email = email;
     }
 
@@ -33,15 +34,23 @@ public class Voter {
         return email;
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+    public void voted(Suggestion suggestion) {
+        if (hasVoted()) {
+            throw new RuntimeException("Already voted!");
+        }
+        suggestion.addVoter(this);
+        this.suggestion = suggestion;
+    }
 
-        Voter voter = (Voter) o;
+    public void undo(Suggestion suggestion) {
+        if (!suggestion.getId().equals(this.suggestion.getId())) {
+            throw new RuntimeException("Unable to undo with wrong suggestion!");
+        }
+        suggestion.removeVoter(this);
+        this.suggestion = null;
+    }
 
-        if (id != null ? !id.equals(voter.id) : voter.id != null) return false;
-
-        return true;
+    private boolean hasVoted() {
+        return suggestion != null;
     }
 }

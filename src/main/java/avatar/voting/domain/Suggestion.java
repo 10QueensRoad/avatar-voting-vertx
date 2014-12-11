@@ -20,7 +20,7 @@ public class Suggestion {
     @ManyToOne
     private Avatar avatar;
 
-    @OneToMany(mappedBy = "suggestion")
+    @OneToMany(mappedBy = "suggestion", cascade = CascadeType.ALL)
     private Set<Voter> voters = new LinkedHashSet<>();
 
     private Suggestion() {
@@ -41,14 +41,31 @@ public class Suggestion {
     }
 
     public Integer getVotes() {
-        return voters.size();
+        return getVoters().size();
+    }
+
+    public Set<Voter> getVoters() {
+        return voters;
     }
 
     public void voted(Voter voter) {
         if (voters.contains(voter)) {
-            throw new RuntimeException("Already voted!");
+            voter.undo(this);
+        } else {
+            voter.voted(this);
         }
+    }
+
+    void addVoter(Voter voter) {
         this.voters.add(voter);
+    }
+
+    void removeVoter(Voter voter) {
+        this.voters.remove(voter);
+    }
+
+    public Long getSuggesterId() {
+        return suggester.getId();
     }
 
     public String getSuggesterEmail() {

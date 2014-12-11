@@ -1,6 +1,7 @@
 package avatar.voting;
 
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
@@ -16,9 +17,11 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 import javax.sql.DataSource;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @Configuration
 @EnableJpaRepositories("avatar.voting.repository")
+@ComponentScan(basePackages = "avatar.voting.service")
 @EnableTransactionManagement
 public class AppConfig {
 
@@ -38,6 +41,7 @@ public class AppConfig {
         factory.setPackagesToScan("avatar.voting.domain");
         factory.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
         Map<String, Object> jpaPropertyMap = new HashMap<>();
+//        jpaPropertyMap.put("hibernate.ejb.entitymanager_factory_name", UUID.randomUUID().toString());
         jpaPropertyMap.put("hibernate.dialect", "org.hibernate.dialect.HSQLDialect");
         jpaPropertyMap.put("hibernate.show_sql", Boolean.FALSE);
         jpaPropertyMap.put("hibernate.format_sql", Boolean.FALSE);
