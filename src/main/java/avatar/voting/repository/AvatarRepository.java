@@ -10,6 +10,6 @@ public interface AvatarRepository extends JpaRepository<Avatar, Long> {
 
     Avatar findByCandidateEmail(String candidateEmail);
 
-    @Query("FROM Avatar WHERE id = (SELECT MAX(id) FROM Avatar WHERE suggestion_open = true OR vote_open = true)")
+    @Query("FROM Avatar WHERE id = (SELECT MAX(id) FROM Avatar)")
     Avatar findLast();
 }
