@@ -1,5 +1,7 @@
 package avatar.voting.domain;
 
+import java.util.Optional;
+
 public class AvatarDetails {
     private Long id;
     private String name;
@@ -14,7 +16,6 @@ public class AvatarDetails {
 
     public AvatarDetails(Avatar avatar) {
         this.id = avatar.getId();
-        this.name = avatar.getName();
         this.candidate = avatar.getCandidate();
         this.candidateEmail = avatar.getCandidateEmail();
         this.suggestionOpen = avatar.getSuggestionOpen();
@@ -23,6 +24,11 @@ public class AvatarDetails {
         this.voteOpenString = voteOpen ? "open" : "close";
         this.numberOfVoters = avatar.getVoters().size();
         this.numberOfSuggestions = avatar.getSuggestions().size();
+        if (!this.voteOpen) {
+            this.name = avatar.getName();
+        } else {
+            avatar.findCandidateSuggestion().ifPresent(s -> this.name = s.getName());
+        }
     }
 
     public Long getId() {

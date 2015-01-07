@@ -104,6 +104,9 @@ public class Avatar {
 
     public void setVoteOpen(Boolean voteOpen) {
         this.voteOpen = voteOpen;
+        if (!this.voteOpen) {
+            findCandidateSuggestion().ifPresent(s -> this.name = s.getName());
+        }
     }
 
     private Optional<Voter> findVoter(Long voterId) {
@@ -127,4 +130,7 @@ public class Avatar {
         return suggestion;
     }
 
+    public Optional<Suggestion> findCandidateSuggestion() {
+        return getSuggestions().stream().max((x, y) -> x.getVotes() - y.getVotes());
+    }
 }
